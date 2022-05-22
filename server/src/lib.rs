@@ -16,8 +16,8 @@ mod tests {
     fn unshuffled_match() {
         let mut gs = game::GameState::default();
         while !gs.deck_is_empty() {
-            let winner = game::turn(&mut gs);
-            assert_eq!(winner.is_none(), true);
+            let event = game::turn(&mut gs);
+            assert_eq!(event.winner.is_none(), true);
         }
     }
 }
