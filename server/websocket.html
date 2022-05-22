@@ -16,8 +16,10 @@
     let messageDiv = document.getElementById("messages");
     websocket = new WebSocket("ws://localhost:3000/connect");
     websocket.onmessage = function (event) {
+      const para = document.createElement("p");
       const node = document.createTextNode(event.data);
-      messageDiv.appendChild(node);
+      para.appendChild(node);
+      messageDiv.appendChild(para);
     };
 
 
