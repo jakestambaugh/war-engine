@@ -1,9 +1,11 @@
 use rand::Rng;
+use serde::Serialize;
 
 use crate::card::*;
 use crate::deck::*;
 
 use std::collections::HashSet;
+use std::fmt::Debug;
 use std::iter::IntoIterator;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -13,7 +15,7 @@ enum Outcome {
     War,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum Winner {
     A,
     B,
@@ -94,14 +96,45 @@ fn resolve(a: &Card, b: &Card) -> Outcome {
     }
 }
 
-pub fn turn(gs: &mut GameState) -> Option<Winner> {
+#[derive(Serialize)]
+pub struct GameLogEvent {
+    pub description: String,
+    pub winner: Option<Winner>,
+}
+
+impl Debug for GameLogEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.description.lines().next().unwrap_or("No events")
+        )
+    }
+}
+
+impl GameLogEvent {
+    pub fn new() -> Self {
+        Self {
+            description: String::new(),
+            winner: None,
+        }
+    }
+
+    pub fn append(&mut self, s: &str) {
+        self.description.push_str(s);
+        self.description.push('\n');
+    }
+}
+
+pub fn turn(gs: &mut GameState) -> GameLogEvent {
+    let mut event = GameLogEvent::new();
     let a: Card = gs.a.deck.draw().unwrap();
     let b: Card = gs.b.deck.draw().unwrap();
 
     let mut outcome = resolve(&a, &b);
 
     gs.wager([a], [b]);
-    println!("{} vs {}: {:?}", a, b, outcome);
+    event.append(&format!("{} vs {}: {:?}", a, b, outcome));
 
     while outcome == Outcome::War && !gs.deck_is_empty() {
         let a: Card = gs.a.deck.draw().unwrap();
@@ -115,33 +148,33 @@ pub fn turn(gs: &mut GameState) -> Option<Winner> {
             wagered += 1;
         }
 
-        println!("--- A wagered: {:?}", gs.a.wagered);
-        println!("--- B wagered: {:?}", gs.b.wagered);
+        event.append(&format!("--- A wagered: {:?}", gs.a.wagered));
+        event.append(&format!("--- B wagered: {:?}", gs.b.wagered));
         outcome = resolve(&a, &b);
-        println!("{} vs {}: {:?}", a, b, outcome);
+        event.append(&format!("{} vs {}: {:?}", a, b, outcome));
     }
     match &outcome {
         Outcome::A => {
             let ai = gs.a.wagered.drain();
             let bi = gs.b.wagered.drain();
             for c in ai.chain(bi) {
-                println!("***{}", c);
+                event.append(&format!("***{}", c));
                 gs.a.won.insert(c);
             }
-            Some(Winner::A)
+            event.winner = Some(Winner::A);
         }
         Outcome::B => {
             let ai = gs.a.wagered.drain();
             let bi = gs.b.wagered.drain();
             for c in ai.chain(bi) {
-                println!("***{}", c);
+                event.append(&format!("***{}", c));
                 gs.b.won.insert(c);
             }
-            Some(Winner::B)
+            event.winner = Some(Winner::B)
         }
         Outcome::War => {
             assert_eq!(gs.deck_is_empty(), true);
-            None
         }
     }
+    event
 }
