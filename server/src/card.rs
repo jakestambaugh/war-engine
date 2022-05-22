@@ -1,3 +1,4 @@
+use std::char;
 use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -51,13 +52,32 @@ impl Rank {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Card {
     pub rank: Rank,
     pub suit: Suit,
 }
 
 impl fmt::Display for Card {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // https://en.wikipedia.org/wiki/Playing_cards_in_Unicode
+        let base: u32 = 0x1F0A0;
+        let rank_offset = match self.rank {
+            Rank::Ace => 1,
+            x => x as u32,
+        };
+        let suit_offset = match self.suit {
+            Suit::Spades => 0x0,
+            Suit::Hearts => 0x10,
+            Suit::Diamonds => 0x20,
+            Suit::Clubs => 0x30,
+        };
+        let value = base + rank_offset + suit_offset;
+        write!(f, "{}", char::from_u32(value).unwrap())
+    }
+}
+
+impl fmt::Debug for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
