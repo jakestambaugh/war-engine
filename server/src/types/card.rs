@@ -10,7 +10,7 @@ pub enum Suit {
 }
 
 impl Suit {
-    pub fn all() -> [Suit; 4] {
+    pub const fn all() -> [Suit; 4] {
         [Self::Diamonds, Self::Clubs, Self::Hearts, Self::Spades]
     }
 }
@@ -33,7 +33,7 @@ pub enum Rank {
 }
 
 impl Rank {
-    pub fn all() -> [Rank; 13] {
+    pub const fn all() -> [Rank; 13] {
         [
             Self::Two,
             Self::Three,
@@ -88,12 +88,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn displays_correctly() {
+    fn displays_debug_correctly() {
         let c = Card {
             rank: Rank::Ace,
             suit: Suit::Spades,
         };
-        let s = format!("{}", c);
+        let s = format!("{:?}", c);
         assert_eq!(s, "Ace of Spades");
     }
 }
