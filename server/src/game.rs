@@ -4,6 +4,7 @@ use serde::Serialize;
 use crate::card::*;
 use crate::deck::*;
 
+use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::iter::IntoIterator;
@@ -21,6 +22,7 @@ pub enum Winner {
     B,
 }
 
+#[derive(Default)]
 struct Player {
     deck: Deck,
     wagered: HashSet<Card>,
@@ -34,16 +36,7 @@ impl Player {
     }
 }
 
-impl Default for Player {
-    fn default() -> Self {
-        Player {
-            deck: Deck::default(),
-            wagered: HashSet::new(),
-            won: HashSet::new(),
-        }
-    }
-}
-
+#[derive(Default)]
 pub struct GameState {
     a: Player,
     b: Player,
@@ -51,7 +44,7 @@ pub struct GameState {
 
 impl GameState {
     pub fn deck_is_empty(&self) -> bool {
-        self.a.deck.len() == 0 && self.b.deck.len() == 0
+        self.a.deck.is_empty() && self.b.deck.is_empty()
     }
 
     fn wager<I>(&mut self, a_wagers: I, b_wagers: I)
@@ -76,23 +69,11 @@ impl GameState {
     }
 }
 
-impl Default for GameState {
-    fn default() -> Self {
-        GameState {
-            a: Player::default(),
-            b: Player::default(),
-        }
-    }
-}
-
 fn resolve(a: &Card, b: &Card) -> Outcome {
-    if a.rank > b.rank {
-        Outcome::A
-    } else if b.rank > a.rank {
-        Outcome::B
-    } else {
-        assert_eq!(a.rank, b.rank);
-        Outcome::War
+    match a.rank.cmp(&b.rank) {
+        Ordering::Greater => Outcome::A,
+        Ordering::Less => Outcome::B,
+        Ordering::Equal => Outcome::War,
     }
 }
 
@@ -100,16 +81,6 @@ fn resolve(a: &Card, b: &Card) -> Outcome {
 pub struct GameLogEvent {
     pub description: String,
     pub winner: Option<Winner>,
-}
-
-impl Debug for GameLogEvent {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.description.lines().next().unwrap_or("No events")
-        )
-    }
 }
 
 impl GameLogEvent {
@@ -123,6 +94,22 @@ impl GameLogEvent {
     pub fn append(&mut self, s: &str) {
         self.description.push_str(s);
         self.description.push('\n');
+    }
+}
+
+impl Debug for GameLogEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.description.lines().next().unwrap_or("No events")
+        )
+    }
+}
+
+impl Default for GameLogEvent {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -173,7 +160,7 @@ pub fn turn(gs: &mut GameState) -> GameLogEvent {
             event.winner = Some(Winner::B)
         }
         Outcome::War => {
-            assert_eq!(gs.deck_is_empty(), true);
+            assert!(gs.deck_is_empty());
         }
     }
     event

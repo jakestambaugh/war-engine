@@ -20,6 +20,10 @@ impl Deck {
     pub fn len(&self) -> usize {
         self.cards.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.cards.is_empty()
+    }
 }
 
 impl Default for Deck {
@@ -46,7 +50,7 @@ impl<'a> std::iter::IntoIterator for &'a Deck {
     type IntoIter = std::slice::Iter<'a, Card>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.cards.as_slice().into_iter()
+        self.cards.as_slice().iter()
     }
 }
 

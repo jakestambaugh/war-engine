@@ -79,12 +79,7 @@ impl fmt::Display for Card {
 
 impl fmt::Debug for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} of {}",
-            format!("{:?}", self.rank),
-            format!("{:?}", self.suit)
-        )
+        write!(f, "{:?} of {:?}", self.rank, self.suit)
     }
 }
 
