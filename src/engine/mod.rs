@@ -29,16 +29,17 @@ pub fn turn(gs: &mut GameState) -> log::GameLogEvent {
     let mut event = log::GameLogEvent::new();
     let a: Card = gs.a.deck.draw().unwrap();
     let b: Card = gs.b.deck.draw().unwrap();
+    // TODO: event DREW CARD (player) (card)
 
     let mut outcome = resolve(&a, &b);
+    // TODO: event COMPARED (player, card) (player, card)
+    // TODO: event RESOLVED (player)
 
     gs.wager([a], [b]);
+    // TODO: event WAGERED DRAWN (card)
     event.append(&format!("{} vs {}: {:?}", a, b, outcome));
 
     while outcome == Outcome::War && !gs.deck_is_empty() {
-        let a: Card = gs.a.deck.draw().unwrap();
-        let b: Card = gs.b.deck.draw().unwrap();
-
         // war_wager
         let mut wagered = 0;
         while gs.a.deck.len() > 1 && gs.b.deck.len() > 1 && wagered < 3 {
@@ -49,7 +50,14 @@ pub fn turn(gs: &mut GameState) -> log::GameLogEvent {
 
         event.append(&format!("--- A wagered: {:?}", gs.a.wagered));
         event.append(&format!("--- B wagered: {:?}", gs.b.wagered));
+        // TODO event WAGERED HIDDEN (player) ([card])
+
+        let a: Card = gs.a.deck.draw().unwrap();
+        let b: Card = gs.b.deck.draw().unwrap();
+        // TODO event DREW CARD (player) (card)
+
         outcome = resolve(&a, &b);
+        gs.wager([a], [b]);
         event.append(&format!("{} vs {}: {:?}", a, b, outcome));
     }
     match &outcome {
@@ -57,6 +65,7 @@ pub fn turn(gs: &mut GameState) -> log::GameLogEvent {
             let ai = gs.a.wagered.drain();
             let bi = gs.b.wagered.drain();
             for c in ai.chain(bi) {
+                // TODO: event CLAIMED WAGER (player) ([card])
                 event.append(&format!("***{}", c));
                 gs.a.won.insert(c);
             }
@@ -66,12 +75,14 @@ pub fn turn(gs: &mut GameState) -> log::GameLogEvent {
             let ai = gs.a.wagered.drain();
             let bi = gs.b.wagered.drain();
             for c in ai.chain(bi) {
+                // TODO: event CLAIMED WAGER (player) ([card])
                 event.append(&format!("***{}", c));
                 gs.b.won.insert(c);
             }
             event.b_wins()
         }
         Outcome::War => {
+            // TODO: event GAME ENDED IN WAR
             assert!(gs.deck_is_empty());
         }
     }
