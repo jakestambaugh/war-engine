@@ -48,25 +48,3 @@ async fn ws_upgrade_handler(
 ) -> impl IntoResponse {
     ws.on_upgrade(|socket| handle_socket(socket, relay))
 }
-
-#[cfg(test)]
-mod tests {
-    use war::engine::log::Winner;
-    use war::engine::turn;
-
-    use super::*;
-    pub fn test_random() {
-        let mut rng = rand::thread_rng();
-
-        let mut game_state = GameState::default();
-        game_state.shuffle(&mut rng);
-        while !game_state.deck_is_empty() {
-            let event = turn(&mut game_state);
-            match event.winner {
-                Some(Winner::A) => println!("Winner: A"),
-                Some(Winner::B) => println!("Winner: B"),
-                None => println!("Game over"),
-            }
-        }
-    }
-}

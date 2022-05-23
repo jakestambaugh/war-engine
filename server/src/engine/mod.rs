@@ -10,11 +10,6 @@ use std::fmt::Debug;
 
 use self::state::GameState;
 
-enum PlayerId {
-    A,
-    B,
-}
-
 #[derive(Debug, PartialEq, Eq)]
 enum Outcome {
     A,

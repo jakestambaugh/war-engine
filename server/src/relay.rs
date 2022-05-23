@@ -4,7 +4,7 @@ use futures::{
     sink::SinkExt,
     stream::{SplitSink, SplitStream, StreamExt},
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 use tokio::{
     sync::{broadcast, mpsc, Mutex},
     task::JoinHandle,
@@ -23,30 +23,12 @@ pub enum PlayerId {
     B,
 }
 
-struct PlayerConnection {
-    rx: Arc<SplitStream<WebSocket>>,
-    tx: Arc<SplitSink<WebSocket, Message>>,
-}
-
-impl PlayerConnection {
-    fn new(
-        sender: Arc<SplitSink<WebSocket, Message>>,
-        receiver: Arc<SplitStream<WebSocket>>,
-    ) -> Self {
-        Self {
-            rx: receiver,
-            tx: sender,
-        }
-    }
-}
-
 pub struct RelayServer {
-    player_connections: HashMap<PlayerId, PlayerConnection>,
     input_tx_handle: mpsc::UnboundedSender<GameInputEvent>,
     broadcast_tx_handle: broadcast::Sender<GameLogEvent>,
 
     // This is the task that runs the relay server logic
-    task: JoinHandle<()>,
+    _task: JoinHandle<()>,
 }
 
 impl RelayServer {
@@ -55,34 +37,23 @@ impl RelayServer {
         let (btx, _) = broadcast::channel(32);
         let game_state = init_gamestate();
         Self {
-            player_connections: HashMap::new(),
             input_tx_handle: tx,
             broadcast_tx_handle: btx.clone(),
-            task: tokio::spawn(run_server(rx, btx.clone(), game_state)),
+            _task: tokio::spawn(run_server(rx, btx, game_state)),
         }
     }
 
-    fn assign_player(&mut self, conn: PlayerConnection) -> &PlayerId {
-        if self.player_connections.contains_key(&PlayerId::B) {
-            // We already have two players, this shouldn't happen
-            panic!()
-        } else if self.player_connections.contains_key(&PlayerId::A) {
-            self.player_connections.insert(PlayerId::B, conn);
-            &PlayerId::B
-        } else {
-            self.player_connections.insert(PlayerId::A, conn);
-            &PlayerId::A
-        }
+    fn run_player(&mut self, socket: WebSocket) {
+        let (sender, receiver) = socket.split();
+
+        tokio::spawn(ws_read(receiver, self.input_tx_handle.clone()));
+        tokio::spawn(ws_write(sender, self.broadcast_tx_handle.subscribe()));
     }
+}
 
-    fn run_player(&mut self, conn: PlayerConnection) {
-        let id = self.assign_player(conn);
-        // This is janky. We know that we just put the connection in the map, we shouldn't have to do this.
-        // Maybe the order of function calls should change? Move the conn into the HashMap after starting the tasks?
-        // let conn = self.player_connections.get(id).unwrap();
-
-        tokio::spawn(ws_read(mut conn.rx, self.input_tx_handle));
-        tokio::spawn(ws_write(mut conn.tx, self.broadcast_tx_handle.subscribe()));
+impl Default for RelayServer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -93,34 +64,33 @@ async fn run_server(
     output_events: broadcast::Sender<GameLogEvent>,
     mut state: GameState,
 ) {
-    let _input = input_events.recv().await;
-    let event = turn(&mut state);
-    output_events.send(event).unwrap();
+    while !state.deck_is_empty() {
+        let _input = input_events.recv().await;
+        let event = turn(&mut state);
+        output_events.send(event).unwrap();
+    }
 }
 
 /// When a new player requests a websocket connection, we create two tasks: one to read and one to write. They each need a channel
 pub async fn handle_socket(socket: WebSocket, relay: Arc<Mutex<RelayServer>>) {
-    let (sender, receiver) = socket.split();
-
-    let connection = PlayerConnection::new(Arc::new(sender), Arc::new(receiver));
-
     // Assign to player
-    relay.lock().await.run_player(connection)
+    relay.lock().await.run_player(socket)
 }
 
 async fn ws_write(
-    sender: &mut SplitSink<WebSocket, Message>,
+    mut sender: SplitSink<WebSocket, Message>,
     mut channel_rx: broadcast::Receiver<GameLogEvent>,
 ) {
     while let Ok(event) = channel_rx.recv().await {
         if let Err(e) = sender.send(Message::Text(event.description)).await {
             eprintln!("Error while sending websocket message: {:?}", e);
+            return;
         }
     }
 }
 
 async fn ws_read(
-    receiver: &mut SplitStream<WebSocket>,
+    mut receiver: SplitStream<WebSocket>,
     channel_tx: mpsc::UnboundedSender<GameInputEvent>,
 ) {
     while let Some(Ok(msg)) = receiver.next().await {
