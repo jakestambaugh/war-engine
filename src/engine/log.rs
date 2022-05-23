@@ -1,52 +1,64 @@
 use serde::Serialize;
+use serde_json::json;
 use std::fmt::Debug;
+use tokio::sync::broadcast;
+
+use crate::types::card::*;
+
+use super::Outcome;
 
 #[derive(Debug, Serialize, Clone, Copy)]
-pub enum Winner {
+pub enum PlayerId {
     A,
     B,
 }
 
-#[derive(Serialize, Clone)]
-pub struct GameLogEvent {
-    pub description: String,
-    pub winner: Option<Winner>,
+#[derive(Serialize, Clone, Copy)]
+pub struct Comparison {
+    pub a_card: Card,
+    pub b_card: Card,
 }
 
-impl GameLogEvent {
-    pub fn new() -> Self {
-        Self {
-            description: String::new(),
-            winner: None,
-        }
-    }
+#[derive(Serialize, Clone)]
+pub struct Wager {
+    pub player: PlayerId,
+    pub cards: Vec<Card>,
+}
 
-    pub fn append(&mut self, s: &str) {
-        self.description.push_str(s);
-        self.description.push('\n');
-    }
-
-    pub fn a_wins(&mut self) {
-        self.winner = Some(Winner::A)
-    }
-
-    pub fn b_wins(&mut self) {
-        self.winner = Some(Winner::B)
-    }
+#[derive(Serialize, Clone)]
+pub enum GameLogEvent {
+    GameStarted,
+    DrewCard(PlayerId, Card),
+    ComparedMatch(Comparison),
+    ResolvedMatch(Outcome),
+    WageredVisible(Wager),
+    WageredHidden(Wager),
+    ClaimedWager(Wager),
+    GameEndedInWar,
+    GameEnded,
 }
 
 impl Debug for GameLogEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.description.lines().next().unwrap_or("No events")
-        )
+        write!(f, "{}", json!(self))
     }
 }
 
-impl Default for GameLogEvent {
-    fn default() -> Self {
-        Self::new()
+pub struct GameLog {
+    logs: Vec<GameLogEvent>,
+    tx: broadcast::Sender<GameLogEvent>,
+}
+
+impl GameLog {
+    pub fn new(tx: broadcast::Sender<GameLogEvent>) -> Self {
+        Self {
+            logs: Vec::new(),
+            tx,
+        }
+    }
+
+    pub fn log(&mut self, event: GameLogEvent) {
+        self.tx.send(event.clone()).unwrap();
+        self.logs.push(event);
     }
 }

@@ -1,6 +1,9 @@
 use std::char;
 use std::fmt;
 
+use serde::Serialize;
+use serde_with::rust::display_fromstr;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Suit {
     Diamonds,
@@ -80,6 +83,15 @@ impl fmt::Display for Card {
 impl fmt::Debug for Card {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?} of {:?}", self.rank, self.suit)
+    }
+}
+
+impl Serialize for Card {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        display_fromstr::serialize(self, serializer)
     }
 }
 

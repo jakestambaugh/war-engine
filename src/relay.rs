@@ -12,7 +12,7 @@ use tokio::{
 
 use crate::engine::{
     input::GameInputEvent,
-    log::GameLogEvent,
+    log::{GameLog, GameLogEvent},
     state::{init_gamestate, GameState},
     turn,
 };
@@ -35,7 +35,8 @@ impl RelayServer {
     pub fn new() -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
         let (btx, _) = broadcast::channel(32);
-        let game_state = init_gamestate();
+        let game_log = GameLog::new(btx.clone());
+        let game_state = init_gamestate(game_log);
         Self {
             input_tx_handle: tx,
             broadcast_tx_handle: btx.clone(),
@@ -61,13 +62,12 @@ impl Default for RelayServer {
 /// This is effectively the "inside-task" half of the relay server
 async fn run_server(
     mut input_events: mpsc::UnboundedReceiver<GameInputEvent>,
-    output_events: broadcast::Sender<GameLogEvent>,
+    _output_events: broadcast::Sender<GameLogEvent>,
     mut state: GameState,
 ) {
     while !state.deck_is_empty() {
         let _input = input_events.recv().await;
-        let event = turn(&mut state);
-        output_events.send(event).unwrap();
+        turn(&mut state);
     }
 }
 
@@ -82,7 +82,10 @@ async fn ws_write(
     mut channel_rx: broadcast::Receiver<GameLogEvent>,
 ) {
     while let Ok(event) = channel_rx.recv().await {
-        if let Err(e) = sender.send(Message::Text(event.description)).await {
+        if let Err(e) = sender
+            .send(Message::Text(serde_json::to_string(&event).unwrap()))
+            .await
+        {
             eprintln!("Error while sending websocket message: {:?}", e);
             return;
         }
