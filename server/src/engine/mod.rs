@@ -1,3 +1,4 @@
+pub mod input;
 pub mod log;
 pub mod machine;
 pub mod state;
@@ -28,8 +29,6 @@ fn resolve(a: &Card, b: &Card) -> Outcome {
         Ordering::Equal => Outcome::War,
     }
 }
-
-struct GameInput {}
 
 pub fn turn(gs: &mut GameState) -> log::GameLogEvent {
     let mut event = log::GameLogEvent::new();

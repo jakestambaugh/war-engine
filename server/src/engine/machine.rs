@@ -1,11 +1,8 @@
-use super::{state::GameState, GameInput};
+use super::input::GameInputEvent;
+use super::state::GameState;
 
 pub fn make_state_machine() -> &'static str {
     "Hello I'm a state machine"
 }
 
-struct InputCommand {
-    text: String,
-}
-
-fn generate_next_state(state: &mut GameState, a_input: &InputCommand, b_input: &InputCommand) {}
+fn generate_next_state(state: &mut GameState, a_input: &GameInputEvent, b_input: &GameInputEvent) {}

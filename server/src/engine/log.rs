@@ -1,13 +1,13 @@
 use serde::Serialize;
 use std::fmt::Debug;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, Copy)]
 pub enum Winner {
     A,
     B,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct GameLogEvent {
     pub description: String,
     pub winner: Option<Winner>,

@@ -1,26 +1,21 @@
 use axum::{
-    extract::ws::{Message, WebSocket, WebSocketUpgrade},
+    extract::ws::WebSocketUpgrade,
     response::{Html, IntoResponse},
     routing::get,
     Extension, Router,
 };
-use futures::{
-    sink::SinkExt,
-    stream::{SplitSink, SplitStream, StreamExt},
-};
 use std::{net::SocketAddr, sync::Arc};
-use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
 
-use war::engine::{log::GameLogEvent, state::GameState, turn};
+use war::relay::{handle_socket, RelayServer};
 
 #[tokio::main]
 async fn main() {
     // initialize tracing
     tracing_subscriber::fmt::init();
 
-    let game_state = Arc::new(Mutex::new(init_gamestate()));
+    let relay_server = Arc::new(Mutex::new(RelayServer::new()));
 
     // build our application with a route
     let app = Router::new()
@@ -29,7 +24,7 @@ async fn main() {
         // `POST /users` goes to `create_user`
         .route("/connect", get(ws_upgrade_handler))
         .layer(TraceLayer::new_for_http())
-        .layer(Extension(game_state));
+        .layer(Extension(relay_server));
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
@@ -49,58 +44,15 @@ async fn root() -> Html<&'static str> {
 
 async fn ws_upgrade_handler(
     ws: WebSocketUpgrade,
-    Extension(state): Extension<Arc<Mutex<GameState>>>,
+    Extension(relay): Extension<Arc<Mutex<RelayServer>>>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(|socket| handle_socket(socket, state))
-}
-
-async fn handle_socket(socket: WebSocket, state: Arc<Mutex<GameState>>) {
-    let (sender, receiver) = socket.split();
-
-    let (tx, rx) = unbounded_channel();
-
-    tokio::spawn(ws_write(sender, rx));
-    tokio::spawn(ws_read(receiver, tx, state));
-}
-
-async fn ws_write(
-    mut sender: SplitSink<WebSocket, Message>,
-    mut channel_rx: UnboundedReceiver<GameLogEvent>,
-) {
-    while let Some(event) = channel_rx.recv().await {
-        if let Err(e) = sender.send(Message::Text(event.description)).await {
-            eprintln!("Error while sending websocket message: {:?}", e);
-        }
-    }
-}
-
-async fn ws_read(
-    mut receiver: SplitStream<WebSocket>,
-    channel_tx: UnboundedSender<GameLogEvent>,
-    state: Arc<Mutex<GameState>>,
-) {
-    while let Some(Ok(msg)) = receiver.next().await {
-        tracing::debug!("websocket message: {:?}", msg);
-
-        let gs = &mut *state.lock().await;
-        let event = turn(gs);
-
-        if let Err(e) = channel_tx.send(event) {
-            eprintln!("Failed to send to channel: {:?}", e);
-        }
-    }
-}
-
-fn init_gamestate() -> GameState {
-    let mut gamestate = GameState::default();
-    let mut rng = rand::thread_rng();
-    gamestate.shuffle(&mut rng);
-    gamestate
+    ws.on_upgrade(|socket| handle_socket(socket, relay))
 }
 
 #[cfg(test)]
 mod tests {
     use war::engine::log::Winner;
+    use war::engine::turn;
 
     use super::*;
     pub fn test_random() {

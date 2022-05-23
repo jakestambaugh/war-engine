@@ -23,6 +23,7 @@ impl PlayerState {
 pub struct GameState {
     pub a: PlayerState,
     pub b: PlayerState,
+    // Todo: Add an RNG that is Send
 }
 
 impl GameState {
@@ -50,4 +51,11 @@ impl GameState {
         self.a.deck.shuffle(rng);
         self.b.deck.shuffle(rng);
     }
+}
+
+pub fn init_gamestate() -> GameState {
+    let mut gamestate = GameState::default();
+    let mut rng = rand::thread_rng();
+    gamestate.shuffle(&mut rng);
+    gamestate
 }
