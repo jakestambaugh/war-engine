@@ -4,7 +4,6 @@ use axum::{
     routing::get,
     Extension, Router,
 };
-use engine::game::{turn, GameLogEvent, GameState};
 use futures::{
     sink::SinkExt,
     stream::{SplitSink, SplitStream, StreamExt},
@@ -13,6 +12,8 @@ use std::{net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::Mutex;
 use tower_http::trace::TraceLayer;
+
+use war::engine::{log::GameLogEvent, state::GameState, turn};
 
 #[tokio::main]
 async fn main() {
@@ -99,7 +100,7 @@ fn init_gamestate() -> GameState {
 
 #[cfg(test)]
 mod tests {
-    use engine::game::Winner;
+    use war::engine::log::Winner;
 
     use super::*;
     pub fn test_random() {

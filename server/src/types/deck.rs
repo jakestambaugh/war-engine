@@ -1,4 +1,4 @@
-use crate::card::{Card, Rank, Suit};
+use crate::types::card::{Card, Rank, Suit};
 use rand::{prelude::SliceRandom, Rng};
 use std::{fmt::Debug, vec::Vec};
 
