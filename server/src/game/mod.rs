@@ -1,3 +1,5 @@
+pub mod fsm;
+
 use rand::Rng;
 use serde::Serialize;
 
