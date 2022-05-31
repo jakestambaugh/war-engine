@@ -12,20 +12,19 @@ use tokio::{
 
 use crate::engine::{
     input::GameInputEvent,
-    log::{GameLog, GameLogEvent},
+    log::{GameLog, GameLogEvent, PlayerId},
     state::{init_gamestate, GameState},
     turn,
 };
 
-#[derive(PartialEq, Eq, Hash)]
-pub enum PlayerId {
-    A,
-    B,
-}
-
 pub struct RelayServer {
     input_tx_handle: mpsc::UnboundedSender<GameInputEvent>,
     broadcast_tx_handle: broadcast::Sender<GameLogEvent>,
+
+    /// When a new relay is created, this field is filled with all of the player ids that the
+    /// server could support. Whenever a new player connects to the server, one player id is removed
+    /// from the pool and assigned to a player task.
+    available_player_slots: Vec<PlayerId>,
 
     // This is the task that runs the relay server logic
     _task: JoinHandle<()>,
@@ -40,15 +39,20 @@ impl RelayServer {
         Self {
             input_tx_handle: tx,
             broadcast_tx_handle: btx.clone(),
+            available_player_slots: vec![PlayerId::A, PlayerId::B],
             _task: tokio::spawn(run_server(rx, btx, game_state)),
         }
     }
 
-    fn run_player(&mut self, socket: WebSocket) {
+    fn claim_player_slot(&mut self) -> Option<PlayerId> {
+        self.available_player_slots.pop()
+    }
+
+    fn run_player(&mut self, socket: WebSocket, id: PlayerId) {
         let (sender, receiver) = socket.split();
 
         tokio::spawn(ws_read(receiver, self.input_tx_handle.clone()));
-        tokio::spawn(ws_write(sender, self.broadcast_tx_handle.subscribe()));
+        tokio::spawn(ws_write(sender, self.broadcast_tx_handle.subscribe(), id));
     }
 }
 
@@ -74,13 +78,31 @@ async fn run_server(
 /// When a new player requests a websocket connection, we create two tasks: one to read and one to write. They each need a channel
 pub async fn handle_socket(socket: WebSocket, relay: Arc<Mutex<RelayServer>>) {
     // Assign to player
-    relay.lock().await.run_player(socket)
+    let mut r = relay.lock().await;
+    match r.claim_player_slot() {
+        Some(id) => r.run_player(socket, id),
+        None => {
+            // Send disconnect message
+            let mut socket = socket;
+            socket
+                .send(Message::Text("Server full".to_owned()))
+                .await
+                .unwrap();
+            socket.close().await.unwrap();
+        }
+    }
 }
 
 async fn ws_write(
     mut sender: SplitSink<WebSocket, Message>,
     mut channel_rx: broadcast::Receiver<GameLogEvent>,
+    id: PlayerId,
 ) {
+    // Send a player id at the beginning of the stream
+    sender
+        .send(Message::Text(format!("Player Id: {:?}", id)))
+        .await
+        .unwrap();
     while let Ok(event) = channel_rx.recv().await {
         if let Err(e) = sender
             .send(Message::Text(serde_json::to_string(&event).unwrap()))
