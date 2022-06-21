@@ -1,0 +1,75 @@
+name: "workflow"
+
+on: [push]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  integration:
+    name: "CI"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+      - name: "Run unit tests"
+        run: echo "Running unit tests"
+  deploy:
+    name: "CD"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: "arn:aws:iam::362124138558:role/github-eks-deployer"
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Build and push Builder image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/war:builder-latest
+          target: "builder"
+          cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/war:builder-latest
+          cache-to: type=inline
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/war
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/war:builder-latest
+          cache-to: type=inline
