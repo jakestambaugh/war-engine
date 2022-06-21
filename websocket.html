@@ -14,7 +14,7 @@
 <script>
   window.onload = function () {
     let messageDiv = document.getElementById("messages");
-    websocket = new WebSocket("ws://localhost:3000/connect");
+    websocket = new WebSocket("ws://war.devops.firaxislive.net/connect");
     websocket.onmessage = function (event) {
       const para = document.createElement("p");
       const node = document.createTextNode(event.data);
