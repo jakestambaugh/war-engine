@@ -23,6 +23,7 @@ async fn main() {
         .route("/", get(root))
         // `POST /users` goes to `create_user`
         .route("/connect", get(ws_upgrade_handler))
+        .route("/health", get(health_handler))
         .layer(TraceLayer::new_for_http())
         .layer(Extension(relay_server));
 
@@ -47,4 +48,8 @@ async fn ws_upgrade_handler(
     Extension(relay): Extension<Arc<Mutex<RelayServer>>>,
 ) -> impl IntoResponse {
     ws.on_upgrade(|socket| handle_socket(socket, relay))
+}
+
+async fn health_handler() -> impl IntoResponse {
+    "OK"
 }
