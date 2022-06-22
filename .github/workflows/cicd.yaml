@@ -1,4 +1,4 @@
-name: "workflow"
+name: Deploy
 
 on: [push]
 
@@ -7,8 +7,8 @@ permissions:
   contents: read
 
 jobs:
-  integration:
-    name: "CI"
+  test:
+    name: "Test"
     runs-on: "ubuntu-latest"
     steps:
       - name: Checkout Code
@@ -17,12 +17,12 @@ jobs:
         with:
           toolchain: stable
       - uses: actions-rs/cargo@v1
+        name: Unit test
         with:
-          command: clippy
-      - name: "Run unit tests"
-        run: echo "Running unit tests"
-  deploy:
-    name: "CD"
+          command: test
+  container:
+    name: "Container"
+    needs: test
     runs-on: "ubuntu-latest"
     steps:
       - name: Checkout Code
@@ -63,9 +63,9 @@ jobs:
             type=ref,event=pr
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v2
+        id: build-image
         with:
           context: .
           push: true
@@ -73,3 +73,20 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/war:builder-latest
           cache-to: type=inline
+      - name: Download task definition
+        run: |
+          aws ecs describe-task-definition --task-definition war --query taskDefinition > task-definition.json
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: server
+          image: ${{ steps.build-image.outputs.image }}
+      - name: Deploy Amazon ECS task definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: war
+          cluster: DevOps
+          wait-for-service-stability: true
