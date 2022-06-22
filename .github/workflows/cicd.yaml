@@ -22,7 +22,6 @@ jobs:
           command: test
   container:
     name: "Container"
-    needs: test
     runs-on: "ubuntu-latest"
     steps:
       - name: Checkout Code
@@ -73,8 +72,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/war:builder-latest
           cache-to: type=inline
+      - name: Echo
+        run: |
+          echo "${{ steps.meta.outputs.tags }}"
     outputs:
-      image: ${{ steps.meta.outputs.tags[0] }}
+      image: ${{ steps.meta.outputs.tags }}
   deploy:
     name: "Deploy to ECS"
     needs: container
@@ -102,7 +104,7 @@ jobs:
         with:
           task-definition: task-definition.json
           container-name: server
-          image: ${{ needs.container.outputs.images[0] }}
+          image: ${{ needs.container.outputs.image }}
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
