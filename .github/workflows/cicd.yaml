@@ -73,19 +73,36 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/war:builder-latest
           cache-to: type=inline
+    outputs:
+      image: ${{ steps.meta.outputs.tags }}
+  deploy:
+    name: "Deploy to ECS"
+    needs: container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: "arn:aws:iam::362124138558:role/github-eks-deployer"
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
       - name: Download task definition
         run: |
           aws ecs describe-task-definition --task-definition war --query taskDefinition > task-definition.json
       - name: Echo
         run: |
-          echo ${{ steps.meta.outputs.tags[0] }}
+          echo ${{ needs.container.outputs.image[0] }}
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: task-definition.json
           container-name: server
-          image: ${{ steps.meta.outputs.tags[0] }}
+          image: ${{ needs.container.outputs.images[0] }}
       - name: Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
