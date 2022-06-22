@@ -51,7 +51,7 @@ impl RelayServer {
     fn run_player(&mut self, socket: WebSocket, id: PlayerId) {
         let (sender, receiver) = socket.split();
 
-        tokio::spawn(ws_read(receiver, self.input_tx_handle.clone()));
+        tokio::spawn(ws_read(receiver, self.input_tx_handle.clone(), id));
         tokio::spawn(ws_write(sender, self.broadcast_tx_handle.subscribe(), id));
     }
 }
@@ -71,6 +71,8 @@ async fn run_server(
 ) {
     while !state.deck_is_empty() {
         let _input = input_events.recv().await;
+
+        // TODO: figure out how to communicate back to the owning server. This might be impossible, so player count may have to live elsewhere.
         turn(&mut state);
     }
 }
@@ -117,13 +119,16 @@ async fn ws_write(
 async fn ws_read(
     mut receiver: SplitStream<WebSocket>,
     channel_tx: mpsc::UnboundedSender<GameInputEvent>,
+    id: PlayerId,
 ) {
     while let Some(Ok(msg)) = receiver.next().await {
         tracing::debug!("websocket message: {:?}", msg);
 
         // TODO: translate websocket protocol into game events
-        let input = GameInputEvent::new(&msg.into_text().unwrap());
-
+        let input = match msg {
+            Message::Close(_) => GameInputEvent::player_disconnect(id),
+            _ => GameInputEvent::new(&msg.into_text().unwrap(), id),
+        };
         if let Err(e) = channel_tx.send(input) {
             eprintln!("Failed to send to channel: {:?}", e);
         }
