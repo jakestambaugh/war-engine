@@ -109,6 +109,6 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: war
+          service: war2
           cluster: DevOps
           wait-for-service-stability: true
