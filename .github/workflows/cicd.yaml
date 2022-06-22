@@ -32,7 +32,7 @@ jobs:
         with:
           role-to-assume: "arn:aws:iam::362124138558:role/github-eks-deployer"
           aws-region: us-east-1
-
+          mask-aws-account-id: "no"
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
