@@ -74,7 +74,7 @@ jobs:
           cache-from: type=registry,ref=${{ steps.login-ecr.outputs.registry }}/war:builder-latest
           cache-to: type=inline
     outputs:
-      image: ${{ steps.meta.outputs.tags }}
+      image: ${{ steps.meta.outputs.tags[0] }}
   deploy:
     name: "Deploy to ECS"
     needs: container
@@ -95,7 +95,7 @@ jobs:
           aws ecs describe-task-definition --task-definition war --query taskDefinition > task-definition.json
       - name: Echo
         run: |
-          echo ${{ needs.container.outputs.image[0] }}
+          echo ${{ needs.container.outputs.image }}
       - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
