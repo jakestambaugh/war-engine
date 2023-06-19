@@ -1,34 +1,36 @@
 <!-- https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_client_applications -->
 <html>
-  <head>
-    <title>War</title>
-  </head>
 
-  <body>
-    <div id="messages">
-      <button id="nexter">Next</button>
-      <h2>Messages</h2>
-    </div>
-  </body>
-  <script>
-    window.onload = function () {
-      let messageDiv = document.getElementById("messages");
-      websocket = new WebSocket(
-        "ws://war-backend.devops.firaxislive.net/connect"
-      );
-      websocket.onmessage = function (event) {
-        const para = document.createElement("p");
-        const node = document.createTextNode(event.data);
-        para.appendChild(node);
-        messageDiv.appendChild(para);
-      };
+<head>
+  <title>War</title>
+</head>
 
-      websocket.onopen = function (event) {
-        const nexter = document.getElementById("nexter");
-        nexter.onclick = function () {
-          websocket.send("Hello, websocket!");
-        };
+<body>
+  <div id="messages">
+    <button id="nexter">Next</button>
+    <h2>Messages</h2>
+  </div>
+</body>
+<script>
+  window.onload = function () {
+    let messageDiv = document.getElementById("messages");
+    websocket = new WebSocket(
+      "ws://localhost:3000/connect"
+    );
+    websocket.onmessage = function (event) {
+      const para = document.createElement("p");
+      const node = document.createTextNode(event.data);
+      para.appendChild(node);
+      messageDiv.appendChild(para);
+    };
+
+    websocket.onopen = function (event) {
+      const nexter = document.getElementById("nexter");
+      nexter.onclick = function () {
+        websocket.send("Hello, websocket!");
       };
     };
-  </script>
+  };
+</script>
+
 </html>
