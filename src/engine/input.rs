@@ -17,6 +17,7 @@ impl GameInputEvent {
     }
 
     pub fn player_disconnect(source: PlayerId) -> Self {
+        tracing::debug!("Player disconnected {:?}", &source);
         Self {
             _text: "player disconnected".into(),
             _close: true,

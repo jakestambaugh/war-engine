@@ -6,21 +6,22 @@
 </head>
 
 <body>
+  <div id="graphic">
+    <p id="a-card"></p>
+    <p id="b-card"></p>
+  </div>
   <div id="messages">
     <button id="nexter">Next</button>
-    <h2>Messages</h2>
+    <h2>Game Log</h2>
   </div>
 </body>
 <script>
   window.onload = function () {
     let messageDiv = document.getElementById("messages");
-    websocket = new WebSocket(
-      "ws://localhost:3000/connect"
-    );
+    websocket = new WebSocket("ws://localhost:3000/connect");
     websocket.onmessage = function (event) {
-      const para = document.createElement("p");
-      const node = document.createTextNode(event.data);
-      para.appendChild(node);
+      const para = createNewLogLine(event.data);
+      const parsed = parseMessageFromServer(event.data);
       messageDiv.appendChild(para);
     };
 
@@ -31,6 +32,19 @@
       };
     };
   };
+
+  function createNewLogLine(data) {
+    const para = document.createElement("p");
+    const node = document.createTextNode(event.data);
+    para.appendChild(node);
+    return para;
+  }
+
+  function parseMessageFromServer(data) {
+    let parsed = JSON.parse(data);
+    console.log(parsed);
+    return parsed;
+  }
 </script>
 
 </html>

@@ -39,7 +39,7 @@ async fn main() {
 
 // basic handler that responds with a static string
 async fn root() -> Html<&'static str> {
-    let main_html = include_str!("../websocket.html");
+    let main_html = include_str!("../frontend/websocket.html");
     Html(main_html)
 }
 
